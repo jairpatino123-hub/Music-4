@@ -61,6 +61,8 @@
   var WEB_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
   var VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
+  var SEARCH_CACHE_TTL_MS = 30000;
+  var searchCache = Object.create(null);
 
   function ok(data) { return { ok: true, data: JSON.stringify(data) }; }
   function fail(message) { return { ok: false, error: { message: String(message || 'Source unavailable') } }; }
@@ -127,11 +129,19 @@
         renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint.videoId) || null;
     if (direct) return direct;
 
-    var str = JSON.stringify(renderer || {});
-    var watchMatch = str.match(/"watchEndpoint":\{"videoId":"([^"]+)"/);
-    if (watchMatch) return watchMatch[1];
-    var match = str.match(/"videoId":"([^"]+)"/);
-    return match ? match[1] : '';
+    var endpoints = [
+      renderer && renderer.navigationEndpoint && renderer.navigationEndpoint.watchEndpoint,
+      renderer && renderer.playNavigationEndpoint && renderer.playNavigationEndpoint.watchEndpoint,
+      renderer && renderer.overlay && renderer.overlay.musicItemThumbnailOverlayRenderer &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint
+    ];
+    for (var e = 0; e < endpoints.length; e++) {
+      if (endpoints[e] && VIDEO_ID_RE.test(String(endpoints[e].videoId || ''))) return endpoints[e].videoId;
+    }
+    return '';
   }
 
   function getTitle(renderer) {
@@ -332,6 +342,10 @@
     if (!term) return ok([]);
     if (Number(page) > 0) return ok([]); // InnerTube paging needs continuation tokens; v1 serves the first page.
 
+    var cacheKey = term.toLowerCase();
+    var cached = searchCache[cacheKey];
+    if (cached && (Date.now() - cached.at) < SEARCH_CACHE_TTL_MS) return ok(cached.items);
+
     try {
       var res = await post(
         YTM_BASE + '/youtubei/v1/search?key=' + YTM_API_KEY,
@@ -363,17 +377,17 @@
         data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents) || [];
 
       var items = [];
-      for (var s = 0; s < sections.length; s++) {
+      for (var s = 0; s < sections.length && items.length < 12; s++) {
         var shelf = sections[s] && sections[s].musicShelfRenderer;
         if (!shelf || !shelf.contents) continue;
-        for (var c = 0; c < shelf.contents.length; c++) {
-          if (items.length >= 24) break;
+        for (var c = 0; c < shelf.contents.length && items.length < 12; c++) {
           var renderer = shelf.contents[c] && shelf.contents[c].musicResponsiveListItemRenderer;
           if (!renderer) continue;
           var item = itemFromRenderer(renderer);
           if (item) items.push(item);
         }
       }
+      searchCache[cacheKey] = { at: Date.now(), items: items };
       return ok(items);
     } catch (err) {
       return fail('YouTube Music search failed: ' + (err && err.message ? err.message : err));
