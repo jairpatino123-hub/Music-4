@@ -10,7 +10,7 @@
       "version": "1.0.1",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.1.zip",
-      "sha256": "89b72d10dd9dfd07d88f19d4acad920dba6d06c83021a317b2b3b39d8b0de62c",
+      "sha256": "ca7703c654f3312bc1f8a07b4e30fedf7e267dad4b852f54700ea9dd83fe1e00",
       "publishedAt": "2026-09-22T00:00:00Z",
       "changelog": [
         "YouTube Music search via InnerTube (WEB_REMIX).",
