@@ -1,6 +1,5 @@
 {
-  "schemaVersion": 1,
-  "repository": "Music-4",
+  "catalogueVersion": 1,
   "modules": [
     {
       "moduleId": "synthetiq-ytmusic-direct-v1",
@@ -15,12 +14,11 @@
       "publishedAt": "2026-09-22T00:00:00Z",
       "changelog": [
         "YouTube Music search via InnerTube (WEB_REMIX).",
-        "Audio-track-only catalogue output.",
-        "Playback remains subject to the upstream Synthetiq Music playback contract."
+        "Playback guarded: detects YouTube's unsigned-stream restriction and reports it honestly."
       ],
       "presentation": {
         "category": "Music",
-        "purpose": "Testing - YouTube Music audio tracks",
+        "purpose": "Testing - YouTube Music search",
         "recommended": false,
         "language": "Multi-language"
       }
