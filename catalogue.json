@@ -10,18 +10,10 @@
       "version": "1.0.1",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.1.zip",
-      "sha256": "ba326aea8c3397ae981a514e3032b05ade237c32de0bfd1abf6c1920f9b2f315",
+      "sha256": "ea1a17812551f5a36b49812408010e97087ee5d1e88f67e8d1a40fc51721a4e0",
       "publishedAt": "2026-09-22T00:00:00Z",
-      "changelog": [
-        "YouTube Music search via InnerTube (WEB_REMIX).",
-        "Playback guarded: detects YouTube's unsigned-stream restriction and reports it honestly."
-      ],
-      "presentation": {
-        "category": "Music",
-        "purpose": "Testing - YouTube Music search",
-        "recommended": false,
-        "language": "Multi-language"
-      }
+      "changelog": ["YouTube Music search via InnerTube (WEB_REMIX).","Playback guarded: detects YouTube's unsigned-stream restriction and reports it honestly."],
+      "presentation": {"category":"Music","purpose":"Testing - YouTube Music search","recommended":false,"language":"Multi-language"}
     }
   ]
 }
