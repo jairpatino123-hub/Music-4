@@ -176,7 +176,7 @@
       const queries = [
         ['Popular Music', 'popular songs'],
         ['New Music', 'new music'],
-        ['Music Videos', 'official music video']
+        ['album', 'album']
       ];
       const sections = [];
 
