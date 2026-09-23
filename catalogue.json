@@ -8,14 +8,14 @@
       "moduleIdentity": "SP-MUS-3033-YTMUSIC-DIRECT",
       "moduleIdentityNumber": 3033,
       "contentType": "music",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.8.zip",
+      "file": "packages/YT-Music-Direct-1.0.9.zip",
       "sha256": "85a96c9b2df4a77a05227f584f5b4a2f2c691f7ad950279eb7b001e52ccf0df8",
-      "publishedAt": "2026-09-23T02:10:00Z",
+      "publishedAt": "2026-09-22T21:00:00Z",
       "changelog": [
-        "Rebuilt package as a standards-compliant DEFLATE ZIP with populated local and central ZIP metadata.",
-        "Fresh package path and independently verified SHA-256."
+        "Replaced the corrupted module source with valid JavaScript.",
+        "Rebuilt the package with uncompressed ZIP entries and verified package bytes."
       ],
       "presentation": {
         "category": "Music",
