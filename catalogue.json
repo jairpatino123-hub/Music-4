@@ -8,10 +8,10 @@
       "moduleIdentity": "SP-MUS-3031-YTMUSIC-DIRECT",
       "moduleIdentityNumber": 3031,
       "contentType": "music",
-      "version": "1.0.10",
+      "version": "1.0.11",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.10.zip",
-      "sha256": "592338ee91ca30a676e0a278a20a3073d27737301861cfda0d7b9a9810b3b182",
+      "file": "packages/YT-Music-Direct-1.0.11.zip",
+      "sha256": "557fb7f72c3f736f686841ab0b7a101904e530cc61dbdd11b85be9406895cb1d",
       "publishedAt": "2026-09-23T03:30:00Z",
       "changelog": [
         "Removed browser-forbidden request headers from YouTube Music search and player calls to prevent iPhone fetch crashes.",
