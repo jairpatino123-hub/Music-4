@@ -11,7 +11,7 @@
       "version": "1.0.11",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.11.zip",
-      "sha256": "5e24759ce8ca2ff4c9b246c971797351ee5b5a22efdb7e134d023732949b0a2f",
+      "sha256": "53b780fb074108dd1b7dc802748a0bc033308ab64ad6d7fd117a849f28df56ab",
       "publishedAt": "2026-09-23T03:30:00Z",
       "changelog": [
         "Removed browser-forbidden request headers from YouTube Music search and player calls to prevent iPhone fetch crashes.",
