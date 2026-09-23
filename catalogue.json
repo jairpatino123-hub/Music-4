@@ -3,20 +3,20 @@
   "repository": "Music-4",
   "modules": [
     {
-      "moduleId": "synthetiq-ytmusic-direct-v1",
+      "moduleId": "synthetiq-ytmusic-direct-v2",
       "moduleFamilyId": "synthetiq_ytmusic_direct",
-      "moduleIdentity": "SP-MUS-3031-YTMUSIC-DIRECT",
-      "moduleIdentityNumber": 3031,
+      "moduleIdentity": "SP-MUS-3032-YTMUSIC-DIRECT",
+      "moduleIdentityNumber": 3032,
       "contentType": "music",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.2.zip",
-      "sha256": "e2908b15a53436d196ebb163f2fc0e1b05ff57556e042111e55b95353c4348c7",
-      "publishedAt": "2026-09-22T00:00:00Z",
+      "file": "packages/YT-Music-Direct-1.0.3.zip",
+      "sha256": "9a9603eae07cb69f5330a0b591e8014fdee6f35df2826dfd57393d4c699ea624",
+      "publishedAt": "2026-09-23T00:30:00Z",
       "changelog": [
-        "Instant-feeling YouTube Music search with warm-result filtering and in-flight request reuse.",
-        "Returns only Song shelf tracks and keeps the 12-result mobile limit.",
-        "Kept the reference IOS/ANDROID/HLS playback resolver and full-playback gating."
+        "New module identity forces fresh installation instead of reusing the cached 1.0.1 module.",
+        "Keeps the instant-feeling YouTube Music search cache and in-flight request reuse.",
+        "Returns only Song shelf tracks and keeps the 12-result mobile limit."
       ],
       "presentation": {
         "category": "Music",
