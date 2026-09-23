@@ -11,7 +11,7 @@
       "version": "1.0.10",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.10.zip",
-      "sha256": "766ae52bca5b687860438abafb071ab5b16672189e770f80ddf526279673c933",
+      "sha256": "a7314b12a43873dc1d2e59b2266161ff679c8bd516c1b27a11ea09cb53613559",
       "publishedAt": "2026-09-23T03:00:00Z",
       "changelog": [
         "Fixed an iPhone search crash by removing browser-forbidden request headers from the YouTube Music search call.",
