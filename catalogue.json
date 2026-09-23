@@ -11,7 +11,7 @@
       "version": "1.0.3",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.3.zip",
-      "sha256": "6a4ce40a8c93229325b1fd22cd52a90e9ac5d4955d98e8d989cfa54c42fb013a",
+      "sha256": "51eb043b3b4f735f3bf71ab21c5b468a2c0b86d7808793d7fc7db860a3a5764e",
       "publishedAt": "2026-09-23T00:30:00Z",
       "changelog": [
         "New module identity forces fresh installation instead of reusing the cached 1.0.1 module.",
