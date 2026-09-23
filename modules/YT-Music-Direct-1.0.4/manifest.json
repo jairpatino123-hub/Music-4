@@ -9,7 +9,7 @@
   "moduleVersion": "1.0.4",
   "moduleFamilyId": "synthetiq_ytmusic_direct",
   "moduleIdentity": "SP-MUS-3033-YTMUSIC-DIRECT",
-  "moduleIdentityNumber": 3032,
+  "moduleIdentityNumber": 3033,
   "releaseTrack": "staging",
   "baseUrl": "https://music.youtube.com",
   "config": {
