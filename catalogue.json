@@ -3,20 +3,19 @@
   "repository": "Music-4",
   "modules": [
     {
-      "moduleId": "synthetiq-ytmusic-direct-v2",
+      "moduleId": "synthetiq-ytmusic-direct-v3",
       "moduleFamilyId": "synthetiq_ytmusic_direct",
-      "moduleIdentity": "SP-MUS-3032-YTMUSIC-DIRECT",
-      "moduleIdentityNumber": 3032,
+      "moduleIdentity": "SP-MUS-3033-YTMUSIC-DIRECT",
+      "moduleIdentityNumber": 3033,
       "contentType": "music",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.3.zip",
-      "sha256": "f7233d57e6d350ea64a71868b8f7dec76cd609c4e34d7662c8a1cb2980d26787",
-      "publishedAt": "2026-09-23T00:30:00Z",
+      "file": "packages/YT-Music-Direct-1.0.4.zip",
+      "sha256": "ebed30a924e53c340934bd3803fb472f50b66f4053b3a723c41166b2c86f0c48",
+      "publishedAt": "2026-09-23T00:45:00Z",
       "changelog": [
-        "New module identity forces fresh installation instead of reusing the cached 1.0.1 module.",
-        "Keeps the instant-feeling YouTube Music search cache and in-flight request reuse.",
-        "Returns only Song shelf tracks and keeps the 12-result mobile limit."
+        "Repacked with a standards-compliant DEFLATE ZIP container so module metadata is readable by strict installers.",
+        "Keeps the YouTube Music search cache, in-flight request reuse, Song-only filtering, and 12-result limit."
       ],
       "presentation": {
         "category": "Music",
