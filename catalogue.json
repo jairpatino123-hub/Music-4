@@ -11,7 +11,7 @@
       "version": "1.0.9",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.9.zip",
-      "sha256": "b78b3cf3f93314d57be30c647dfa1d46ec6717deeb441e9d8939a511dd654bf2",
+      "sha256": "4d69b47454e364cb3332075fe9ae7a590848482e6fd6f6f3b48fa61c3650284b",
       "publishedAt": "2026-09-22T21:00:00Z",
       "changelog": [
         "Replaced the corrupted module source with valid JavaScript.",
