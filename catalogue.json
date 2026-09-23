@@ -11,7 +11,7 @@
       "version": "1.0.9",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.9.zip",
-      "sha256": "b7f5f4b206712037cf61c1a8e3695021c94825d708b2859dcfd7454b89d285bb",
+      "sha256": "1fdfa38383e7d04ca0b946b831d2457cf5efc0bf271e181402fe6f16d5b522c0",
       "publishedAt": "2026-09-23T02:00:00Z",
       "changelog": [
         "Restored the original YT Music Direct module identity so installed v1 modules can recognize this as an update.",
