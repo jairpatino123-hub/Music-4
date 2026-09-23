@@ -322,8 +322,8 @@
       title: getTitle(renderer),
       artist: info.artist || 'Unknown Artist',
       album: info.album || undefined,
-      image: bestThumbnail(thumbs) || undefined,
-      durationSeconds: durationSeconds || undefined
+      image: bestThumbnail(thumbs) || '',
+      durationSeconds: durationSeconds || 0
     };
   }
 
@@ -341,10 +341,7 @@
           params: 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D'
         },
         {
-          'Content-Type': 'application/json',
-          'Origin': YTM_BASE,
-          'Referer': YTM_BASE + '/',
-          'User-Agent': WEB_USER_AGENT
+          'Content-Type': 'application/json'
         }
       );
       if (!res.ok && res.status !== 200) {
