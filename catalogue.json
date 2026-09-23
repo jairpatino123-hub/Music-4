@@ -11,7 +11,7 @@
       "version": "1.0.4",
       "releaseTrack": "staging",
       "file": "packages/YT-Music-Direct-1.0.4.zip",
-      "sha256": "38418f4dde60a976e953fb656caf0f10db09318ed72561b316c4980185afa103",
+      "sha256": "aaa1bf953293bf5677b7a3404fa9df33ddec3d167fc795316d36ab9229e5f7be",
       "publishedAt": "2026-09-23T00:45:00Z",
       "changelog": [
         "Repacked with a standards-compliant DEFLATE ZIP container so module metadata is readable by strict installers.",
