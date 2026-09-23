@@ -8,10 +8,10 @@
       "moduleIdentity": "SP-MUS-3031-YTMUSIC-DIRECT",
       "moduleIdentityNumber": 3031,
       "contentType": "music",
-      "version": "1.0.10",
+      "version": "1.0.9",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.10.zip",
-      "sha256": "e0c783dcc646bba9746c9838b26725ee22789d90e31b5c4261211d1679c3338f",
+      "file": "packages/YT-Music-Direct-1.0.9.zip",
+      "sha256": "f8010d0c1a7ffa4dea831d0d7790f7d56b4e94c9ed466efb4e2c3c7f97c01be8",
       "publishedAt": "2026-09-23T03:00:00Z",
       "changelog": [
         "Fixed an iPhone search crash by removing browser-forbidden request headers from the YouTube Music search call.",
