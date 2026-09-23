@@ -162,7 +162,7 @@
     return post(
       YTM_BASE + '/youtubei/v1/player?prettyPrint=false&key=' + YTM_API_KEY,
       { context: { client: context }, videoId: trackId, contentCheckOk: true, racyCheckOk: true },
-      { 'Content-Type': 'application/json', 'User-Agent': userAgent }
+      { 'Content-Type': 'application/json' }
     ).then(function (res) {
       if (!res.ok && res.status !== 200) {
         throw new Error(LOG_PREFIX + ' player HTTP ' + res.status);
@@ -341,10 +341,7 @@
           params: 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D'
         },
         {
-          'Content-Type': 'application/json',
-          'Origin': YTM_BASE,
-          'Referer': YTM_BASE + '/',
-          'User-Agent': WEB_USER_AGENT
+          'Content-Type': 'application/json'
         }
       );
       if (!res.ok && res.status !== 200) {
