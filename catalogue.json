@@ -8,14 +8,14 @@
       "moduleIdentity": "SP-MUS-3033-YTMUSIC-DIRECT",
       "moduleIdentityNumber": 3033,
       "contentType": "music",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "releaseTrack": "staging",
-      "file": "packages/YT-Music-Direct-1.0.7.zip",
-      "sha256": "9e3ed0be9efeac86acf1e82c4706f9f449375cf44513f4b4f692f695cd834fcf",
-      "publishedAt": "2026-09-23T01:45:00Z",
+      "file": "packages/YT-Music-Direct-1.0.8.zip",
+      "sha256": "85a96c9b2df4a77a05227f584f5b4a2f2c691f7ad950279eb7b001e52ccf0df8",
+      "publishedAt": "2026-09-23T02:10:00Z",
       "changelog": [
-        "Fresh package path to bypass stale source-package caching.",
-        "Package SHA-256 independently verified against the exact GitHub package bytes."
+        "Rebuilt package as a standards-compliant DEFLATE ZIP with populated local and central ZIP metadata.",
+        "Fresh package path and independently verified SHA-256."
       ],
       "presentation": {
         "category": "Music",
