@@ -1,187 +1,440 @@
-/*ü(¨Må¹Ñ¡Ñ¥Ä5ÕÍ¥Í½ÕÉµ½Õ±PeP5ÕÍÿö2F&V7@¢¢ÖöGVÆTfÖÇC¢7çFWF÷F×W6ÿ×Ù\XÝ
-
-^\È[[[Ý]Y[ÈÛH[ÿuTube Music through the public InnerTube
- * eý¹Á½¥¹ÑÌ¸9¼½Õ¹Ð°¹¼áÑÉ¹°É¥ìÙÿ÷'&WVW7BvöW27G&vBFð¢¢×W62ç÷WGV&RÿØÛÛKXÚÈY[]H\ÈHLKXÚ\XÝ\Y[ÿ id.
+/*
+ * Synthetiq Music source module — YT Music Direct
+ * moduleFamilyId: synthetiq_ytmusic_direct
  *
- * Ported and adapted from the communý¥ÑäeQ5ÕÍ¥µ¥ÉÐÁÁÉ½ ½ÈÑ¡(¨Må¹Ñ¡ÿ÷F×W62cBÖöGVÆR6öçG&7B6V&6&W7VÇG2ÿÈ^XÝ]Z[ÈÂ
-^XÝXÚÜÈÈ^XÝÿudioUrl).
+ * Plays full-length audio from YouTube Music through the public InnerTube
+ * endpoints. No account, no external bridge; every request goes straight to
+ * music.youtube.com. Track identity is the 11-character video id.
  *
- * Design rules honoured from thýáMA%9¥µÁ±µ¹ÑÑ¥½¸è(¨´]	}I5%`Íÿö66VÆb'6ærf÷"6öæw0¢¢Òõ2ÆW"ÿÛY[\Ý
-Y\]H]Y[ËÛ\
-KSÒQ[ÿlback,
+ * Ported and adapted from the community YTMusic-direct approach for the
+ * Synthetiq Music v4 module contract (searchResults / extractDetails /
+ * extractTracks / extractAudioUrl).
+ *
+ * Design rules honoured from the 8SPINE implementation:
+ *  - WEB_REMIX search shelf parsing for songs
+ *  - IOS player client first (adaptive audio/mp4), ANDROID fallback,
  *    HLS manifest as last resort
- *  ü´Ù¥Í¥Ñ½ÉÑ¥ÌÍÐµ½ÉÐèµ¥ÍÍ¥¹¥ÐµÕÍÿòæ÷B'&V²Æ&6°¢¢ÒæòVFòU$Â27FÿÜY[]Ú\H^Ù\H]\[YHÙ
-ÿ extractAudioUrl (the app pairs URL + headersü¥¸µµ½Éä¹ÉÍ½±ÙÌ(¨¥¸ÑÈáÿö'fÇW&W2¢¢ð¢gVæ7Föâ°¢wW6R7G&ÿÝ	ÎÂ\Ñ×ÔQVH	ÖÜÞ[]\WÞ]]\ÚX×Ùÿirect]';
-  var YTM_BASE = 'https://music.youtýÕ¹½´ì(ÙÈeQ5}A%}-dô%éMååa0Íi©ÿöFEesFD¦ô5DÂÕtUdDå3s°¢f"dÔÅÒwÿÞ[]\WÞ]]\ÚX×Ù\XÝ	ÎÂ\TÒUÔÑUÿ_TTL_MS = 20 * 60 * 1000;
-  var cachedVisitorýÑô¹Õ±°ì(ÙÈ¡Y¥Í¥Ñ½ÉÑÐôÀì(ÿòf"tT%õ$TÔô4ôåDUBÒ°¢6ÆVçDæÖS¢ÿÕÑPÔSRV	ËÛY[\Ú[Û	ÌKÌÿ.00',
+ *  - visitorData is best-effort: missing it must not break playback
+ *  - no audio URL is stored anywhere except the return value of
+ *    extractAudioUrl (the app pairs URL + headers in memory and resolves
+ *    again after expiry failures)
+ */
+(function () {
+  'use strict';
+
+  var LOG_PREFIX = '[synthetiq_ytmusic_direct]';
+  var YTM_BASE = 'https://music.youtube.com';
+  var YTM_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  var FAMILY = 'synthetiq_ytmusic_direct';
+
+  var VISITOR_DATA_TTL_MS = 20 * 60 * 1000;
+  var cachedVisitorData = null;
+  var cachedVisitorDataAt = 0;
+
+  var WEB_REMIX_CONTEXT = {
+    clientName: 'WEB_REMIX',
+    clientVersion: '1.20260304.03.00',
     hl: 'en',
     gl: 'US'
   };
-  var Iý=M}=9QaPôì(±¥¹Ñ9µè%=L°(±ÿöVçEfW'6öã¢s#ã#"ãrÀ¢FWf6TÖ¶S¢tÆÿÉË]XÙS[Ù[	ÚTÛLMËÜÓ[YNÿ 'iPhone',
+  var IOS_CONTEXT = {
+    clientName: 'IOS',
+    clientVersion: '20.22.1',
+    deviceMake: 'Apple',
+    deviceModel: 'iPhone16,2',
+    osName: 'iPhone',
     osVersion: '18.5.0.22F76',
-   ü¡°è¸°(°èUL(ôì(ÙÈ9I=%}ÿôåDUBÒ°¢6ÆVçDæÖS¢täE$ôBrÀ¢6ÆÿÛ\Ú[Û	ÌÍË[ÚYÙÕ\Ú[Ûÿ 35,
+    hl: 'en',
+    gl: 'US'
+  };
+  var ANDROID_CONTEXT = {
+    clientName: 'ANDROID',
+    clientVersion: '20.22.36',
+    androidSdkVersion: 35,
     osName: 'Android',
-    osVersion: '1üÔ°(¡°è¸°(°èUL(ôì(ÙÈ%=ÿõõU4U%ôtTåBÒv6öÒævöövÆRæ÷2ç÷WGV&Ró#ã#"ãÿÈ
-TÛLMÈNÈÔHSÔÈNÍHZÙHXXÈÔÈ
-Iÿ;
-  var ANDROID_USER_AGENT = 'com.google.andrý½¥¹å½ÕÑÕ¼ÈÀ¸ÈÈ¸ÌØ¡1¥¹ÕàìTì¹É½¥ÄÔ¤ÿð¢f"tT%õU4U%ôtTåBÒtÖ÷¦ÆÆóRãvæF÷wÿÈLÈÚ[È
-H\UÙXÚ]ÍLÍËÍ
-ÒÿML, like Gecko) Chrome/124.0.0.0 Safari/537.3üØì((ÙÈY%=}%}Iô½ylµ}µiµèÀ´åuìÄÅôÿòó°¢f"4T$4ô44UõEDÅôÕ2Ò#°¢f"ÿÜÙX\ÚØXÚHHØXÝÜX]J[
-NÂ\ÙX\ÿchInflight = Object.create(null);
+    osVersion: '15',
+    hl: 'en',
+    gl: 'US'
+  };
+  var IOS_USER_AGENT = 'com.google.ios.youtube/20.22.1 (iPhone16,2; U; CPU iOS 18_5 like Mac OS X)';
+  var ANDROID_USER_AGENT = 'com.google.android.youtube/20.22.36 (Linux; U; Android 15)';
+  var WEB_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-  functionü½¬¡Ñ¤ìÉÑÕÉ¸ì½¬èÑÉÕ°Ñè)M=8¹ÍÑÿöævgFFÓ²Ð¢gVæ7FöâfÂÖW76vR²ÿÜ]\ÈÚÎ[ÙK\ÜÈY\ÜØYÙNÝ[Êÿmessage || 'Source unavailable') } }; }
+  var VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
 
-  fuý¹Ñ¥½¸ÁÉÍÕÉÑ¥½¸¡ÑáÐ¤ì(¥ ÑáÐ¤ÿöWGW&â°¢f"'G2Ò7G&ærFWBç7ÆBÿÎÊKX\
-[X\NÂY
-\Ë[ÝOOHÊHÿreturn parts[0] * 3600 + parts[1] * 60 + partýÍlÉtì(¥¡ÁÉÑÌ¹±¹Ñ ôôôÈ¤ÉÑÕÉ¸ÁÉÿ÷5³Ò¢c²'G5³Ó°¢&WGW&â'G5³ÒÇÂÿÌÂB[Ý[Û\Ý[XZ[
-[XZ[ÊHÿ{
-    if (!thumbnails || !thumbnails.length) ýÉÑÕÉ¸ì(ÙÈÍÐôÑ¡Õµ¹¥±ÍlÁtì(ÿöf÷"f"Ò²ÂFVÖ&æÇ2æÆVæwF²²²ÿÂY
+  function ok(data) { return { ok: true, data: JSON.stringify(data) }; }
+  function fail(message) { return { ok: false, error: { message: String(message || 'Source unavailable') } }; }
 
-[XZ[ÖÚWKÚY
-H
-\Ýÿ.width || 0)) best = thumbnails[i];
-    }
-   ü¼¼AÉÈÉÍ½¹±Í¥éìÌÔÄÈ½ÌÔÐÐ±½½¬ÿ÷6'vF÷WB&VærVvRà¢f÷"f"¢ÒFÿÝ[XZ[Ë[ÝHNÈHÈKJHÂYÿ((thumbnails[j].width || 0) <= 600) return thýÕµ¹¥±Ím©t¹ÕÉ°ì(ô(ÉÑÕÉ¸ÍÐ¹ÕÉ°ì(ÿòÐ ¢gVæ7Föâ'6Tæfõ'Vç2'Vç2°¢bÿÈ\[È\[Ë[Ý
-H]\È\\Ý	ÉËÿlbum: '', type: 'Song' };
-    var parts = [];ü(ÙÈÕÉÉ¹Ðôì(½È¡ÙÈ¤ôÀì¤ÿóÂ'Vç2æÆVæwF²²²°¢f"FWBÒ'Vç5¶ÿ×K^ÂY
-^OOH	ÈL	ÊHÂÿ    if (current) parts.push(current.trim());
-üÕÉÉ¹Ðôì(ô±Íì(ÿö7W'&VçB³ÒFWC°¢Ð¢Ð¢b7W'&VÿÝ
-H\Ë\Ú
-Ý\[[J
-JNÂ\\]ÿionText = '';
-    while (parts.length > 1 && ü½yq¬éqìÉô éqìÉô¤ü¼¹ÑÍÐ¡ÁÉÑÍmÁÉÑÌ¹±¹ÿöÒÒ°¢GW&FöåFWBÒ'G2ç÷°ÿÈB\\SX[ÈHÉÔÛÛÉË	ÕY[ÉËÿ 'EP', 'Single', 'Podcast'];
-    var idx = 0;ü(ÙÈÑåÁôM½¹ì(¥¡ÁÉÑÌ¹±¹Ñ ÿóâbbGTÆ&VÇ2ææFWöb'G5³ÒÓÒÓÿÂ\HH\ÖÌNÂYHNÂBÿ    return { artist: parts[idx] || '', album:üÁÉÑÍm¥à¬Åtñð°ÑåÁèÑåÁ°ÕÉÑ¥½¹Qÿ÷C¢GW&FöåFWBÓ°¢Ð ¢gVæ7FöâvWEfFVôÿÙ
-[\\HÂ\\XÝB
-[\ÿr && renderer.playlistItemData && renderer.plýå±¥ÍÑ%ÑµÑ¹Ù¥½%¤ñð(¡É¹ÉÈÿò&VæFW&W"æ÷fW&Æbb&VæFW&W"æ÷fW&Ææ×W64ÿÙ[U[XZ[Ý\^T[\\	[\ÿr.overlay.musicItemThumbnailOverlayRenderer.cý½¹Ñ¹Ð(É¹ÉÈ¹½ÙÉ±ä¹µÕÍ¥%ÑµÿöVÖ&æÄ÷fW&Æ&VæFW&W"æ6öçFVçBæ×W65Æ'WGÿÛÛ[\\	[\\Ý\^K]\ÚXÒÿtemThumbnailOverlayRenderer.content.musicPlayý	ÕÑÑ½¹I¹ÉÈ¹Á±å9Ù¥Ñ¥½¹¹Á½¥¹Ð(ÿò&VæFW&W"æ÷fW&Ææ×W64FVÕFVÖ&æÄ÷fW&ÆÿÞT[\\ÛÛ[]\ÚXÔ^P]Û[\\ÿyNavigationEndpoint.watchEndpoint &&
-        ýÉ¹ÉÈ¹½ÙÉ±ä¹µÕÍ¥%ÑµQ¡Õµ¹¥±=ÙÉ±åIÿöFW&W"æ6öçFVçBæ×W65Æ'WGFöå&VæFW&W"çÆæÿÚYØ][Û[Ú[Ø]Ú[Ú[Y[ÒY
-H[ÿl;
-    if (direct) return direct;
-
-    var enýÁ½¥¹ÑÌôl(É¹ÉÈÉ¹ÉÈ¹¹Ù¥ÿ÷FöäVæGöçBbb&VæFW&W"ææfvFöäVæGöçBçÿØ]Ú[Ú[[\\	[\\^ÿNavigationEndpoint && renderer.playNavigationý¹Á½¥¹Ð¹ÝÑ¡¹Á½¥¹Ð°(É¹ÉÈÉÿöFW&W"æ÷fW&Æbb&VæFW&W"æ÷fW&Ææ×W64FVÕFÿÝ[XZ[Ý\^T[\\	[\\Ýÿerlay.musicItemThumbnailOverlayRenderer.conteý¹Ð(É¹ÉÈ¹½ÙÉ±ä¹µÕÍ¥%ÑµQ¡ÕµÿöæÄ÷fW&Æ&VæFW&W"æ6öçFVçBæ×W65Æ'WGFöå&ÿÛ\\	[\\Ý\^K]\ÚXÒ][UÿhumbnailOverlayRenderer.content.musicPlayButtý½¹I¹ÉÈ¹Á±å9Ù¥Ñ¥½¹¹Á½¥¹Ð(ÿ÷&VæFW&W"æ÷fW&Ææ×W64FVÕFVÖ&æÄ÷fW&Æ&VÿÙ\\ÛÛ[]\ÚXÔ^P]Û[\\^S]ÿigationEndpoint.watchEndpoint
-    ];
-    for ü¡ÙÈôÀìð¹Á½¥¹ÑÌ¹±¹Ñ ì¬¬¤ì(ÿòbVæGöçG5¶UÒbbdDTõôEõ$RçFW7B7G&æÿÊ[Ú[ÖÙWKY[ÒY	ÉÊJJH]\[Ú[ÿts[e].videoId;
-    }
-    return '';
+  function parseDuration(text) {
+    if (!text) return 0;
+    var parts = String(text).split(':').map(Number);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return parts[0] || 0;
   }
 
-  fuý¹Ñ¥½¸ÑQ¥Ñ±¡É¹ÉÈ¤ì(ÙÈ½°ôÉÿöFW&W"bb&VæFW&W"æfÆW6öÇVÖç2bb&VæFW&W"æfÆÿÞÛÛ[[ÖÌH	[\\^ÛÛ[[ÖÌKÿmusicResponsiveListItemFlexColumnRenderer;
-  üÙÈÉÕ¹Ìô½°½°¹ÑáÐ½°¹ÑáÐ¹ÉÕ¹ÿó°¢b'Vç2&WGW&ârs°¢&WGW&â'Vç2æÿØ\
-[Ý[Û
-
-HÈ]\^ÈJKÚ[	ÉÊNÿ
+  function bestThumbnail(thumbnails) {
+    if (!thumbnails || !thumbnails.length) return '';
+    var best = thumbnails[0];
+    for (var i = 1; i < thumbnails.length; i++) {
+      if ((thumbnails[i].width || 0) > (best.width || 0)) best = thumbnails[i];
+    }
+    // Prefer a reasonable size; s512/s544 look sharp without being huge.
+    for (var j = thumbnails.length - 1; j >= 0; j--) {
+      if ((thumbnails[j].width || 0) <= 600) return thumbnails[j].url;
+    }
+    return best.url;
+  }
+
+  function parseInfoRuns(runs) {
+    if (!runs || !runs.length) return { artist: '', album: '', type: 'Song' };
+    var parts = [];
+    var current = '';
+    for (var i = 0; i < runs.length; i++) {
+      var text = runs[i].text;
+      if (text === ' \u2022 ') {
+        if (current) parts.push(current.trim());
+        current = '';
+      } else {
+        current += text;
+      }
+    }
+    if (current) parts.push(current.trim());
+
+    var durationText = '';
+    while (parts.length > 1 && /^\d+:\d{2}(:\d{2})?$/.test(parts[parts.length - 1])) {
+      durationText = parts.pop();
+    }
+
+    var typeLabels = ['Song', 'Video', 'EP', 'Single', 'Podcast'];
+    var idx = 0;
+    var type = 'Song';
+    if (parts.length > 1 && typeLabels.indexOf(parts[0]) !== -1) {
+      type = parts[0];
+      idx = 1;
+    }
+    return { artist: parts[idx] || '', album: parts[idx + 1] || '', type: type, durationText: durationText };
+  }
+
+  function getVideoId(renderer) {
+    var direct =
+      (renderer && renderer.playlistItemData && renderer.playlistItemData.videoId) ||
+      (renderer && renderer.overlay && renderer.overlay.musicItemThumbnailOverlayRenderer &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint &&
+        renderer.overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint.videoId) || null;
+    if (direct) return direct;
+
+    var str = JSON.stringify(renderer || {});
+    var watchMatch = str.match(/"watchEndpoint":\{"videoId":"([^"]+)"/);
+    if (watchMatch) return watchMatch[1];
+    var match = str.match(/"videoId":"([^"]+)"/);
+    return match ? match[1] : '';
+  }
+
+  function getTitle(renderer) {
+    var col = renderer && renderer.flexColumns && renderer.flexColumns[0] &&
+      renderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer;
+    var runs = col && col.text && col.text.runs;
+    if (!runs) return '';
+    return runs.map(function (t) { return t.text; }).join('');
   }
 
   function parseJsonBody(res) {
-    if ü ÉÌ¤ÉÑÕÉ¸AÉ½µ¥Í¹É©Ð¡¹ÜÉÉ½È ¹¼Éÿ÷7öç6Rr°¢bGVöb&W2æ§6öâÓÓÒvgVæ7ÿÚ[ÛÊH]\\ËÛÛ
-NÂY
-\[Ù\Ëÿext === 'function') {
-      return res.text()ü¹Ñ¡¸¡Õ¹Ñ¥½¸¡Ð¤ìÉÑÕÉ¸)M=8¹ÁÉÍ¡Ð¤ìôÿó°¢Ð¢&WGW&â&öÖ6Rç&V¦V7BæWrW'&÷"ÿÜ\ÜÛÙH\ÈÝXYXIÊJNÂB[Ý[Ûÿpost(url, body, headers) {
-    return fetch(uýÉ°°ìµÑ¡½èA=MP°¡ÉÌè¡ÉÌ°½äÿò¥4ôâç7G&ævg&öGÒ°¢Ð ¢gVæ7Föâ6ÿÛ^Y\XÚÒYÛY[\Ù\YÙ[
-HÂ\ÿ context = {};
-    for (var k in client) contýáÑm­tô±¥¹Ñm­tì(¥¡¡Y¥Í¥Ñ½ÉÑÿò6öçFWBçf6F÷$FFÒ66VEf6F÷$FF°¢ÿÈ]\ÜÝ
-UWÐTÑH
-È	ËÞ[Ý]XZKÝÿ/player?prettyPrint=false&key=' + YTM_API_KEYü°(ì½¹ÑáÐèì±¥¹Ðè½¹ÑáÐô°Ù¥ÿôC¢G&6´BÂ6öçFVçD6V6´ö³¢G'VRÂ&76V6´ÿÚÎYHKÈ	ÐÛÛ[U\IÎ	Ø\XØ]ÿon/json', 'User-Agent': userAgent }
-    ).theý¸¡Õ¹Ñ¥½¸¡ÉÌ¤ì(¥ ÉÌ¹½¬ÉÌ¹ÿ÷FGW2ÓÒ#°¢F&÷ræWrW'&÷"ÄôuÿÔQV
-È	È^Y\	È
-È\ËÝ]\ÊNÂÿ }
-      return parseJsonBody(res);
-    }).thý¸¡Õ¹Ñ¥½¸¡Ñ¤ì(ÙÈÍÑÑÕÌôÑÿòbbFFçÆ&ÆG7FGW2bbFFçÆ&ÆGÿÔÝ]\ËÝ]\ÎÂY
-Ý]\È	Ý]\ÈOOÿ 'OK') {
-        cachedVisitorData = null;
-  ü¡Y¥Í¥Ñ½ÉÑÐôÀì(Ñ¡É½ÜÿöæWrW'&÷"uÆ&6²&Æö6¶VC¢r²FFçÆÿØ[]TÝ]\È	]K^XX[]TÝ]\ËX\ÛÛÿ) || status));
+    if (!res) return Promise.reject(new Error('no response'));
+    if (typeof res.json === 'function') return res.json();
+    if (typeof res.text === 'function') {
+      return res.text().then(function (t) { return JSON.parse(t); });
+    }
+    return Promise.reject(new Error('response is not readable'));
+  }
+
+  function post(url, body, headers) {
+    return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
+  }
+
+  function callPlayer(trackId, client, userAgent) {
+    var context = {};
+    for (var k in client) context[k] = client[k];
+    if (cachedVisitorData) context.visitorData = cachedVisitorData;
+    return post(
+      YTM_BASE + '/youtubei/v1/player?prettyPrint=false&key=' + YTM_API_KEY,
+      { context: { client: context }, videoId: trackId, contentCheckOk: true, racyCheckOk: true },
+      { 'Content-Type': 'application/json', 'User-Agent': userAgent }
+    ).then(function (res) {
+      if (!res.ok && res.status !== 200) {
+        throw new Error(LOG_PREFIX + ' player HTTP ' + res.status);
       }
-      return data || {ýôì(ô¤ì(ô((Õ¹Ñ¥½¸ÑY¥Í¥Ñ½ÉÑ ¤ÿð¢b66VEf6F÷$FFbbFFRææ÷rÒÿØXÚY\Ú]Ü]P]
-HTÒUÔÑUWÕÓTÊHÂÿ      return Promise.resolve(cachedVisitorDatý¤ì(ô(ÉÑÕÉ¸Á½ÍÐ (eQ5}	M¬ÿò÷÷WGV&V÷c÷f6F÷%öCö¶WÒr²DÕôô´UÀÿÈÈÛÛ^ÈÛY[ÑPÔSRVÐÓÓVÿ} },
-      { 'Content-Type': 'application/jsoý¸ô(¤¹Ñ¡¸¡ÁÉÍ)Í½¹	½ä¤¹Ñ¡¸¡Õ¹Ñ¥½¸ÿòFF°¢bFFbbFFç&W7öç6T6öçFÿÞ	]K\ÜÛÙPÛÛ^\Ú]Ü]JHÂÿ     cachedVisitorData = data.responseContextü¹Ù¥Í¥Ñ½ÉÑì(ô(ô¤¹Ñ ¡Õ¹Ñ¥½¸ÿò°¢òòf6F÷$FF2&W7BÖVff÷'C²ÆÿÙ\Ø[ÈÙ[\[HÛÜÈÚ]Ý]]JKÿen(function () {
-      cachedVisitorDataAt = ýÑ¹¹½Ü ¤ì(ÉÑÕÉ¸¡Y¥Í¥Ñ½ÉÑì(ÿòÒ°¢Ð ¢gVæ7Föâ6´VFôf÷&ÖB7G&VÿÚ[Ñ]K]X[]JHÂ\Y\]HH
-ÝXÿmingData.adaptiveFormats || []).filter(functiý½¸¡¤ì(ÉÑÕÉ¸¹ÕÉ°¹µ¥µQåÿöRbbbæÖÖUGRææFWöbvVFòòrÓÓÒ°¢ÿßJNÂY
-XY\]K[Ý
-H]\[Âÿ  var mp4 = adaptive.filter(function (f) { reýÑÕÉ¸¹µ¥µQåÁ¹¥¹á= Õ¥¼½µÀÐ¤ôôôÀìÿò°¢f"6æFFFW2Ò×BæÆVæwFò×B¢ÿØ\]NÂØ[Y]\ËÛÜ
-[Ý[Û
-KHÿ return (a.bitrate || 0) - (b.bitrate || 0); ýô¤ì(ÙÈ¥Í1½ÜôMÑÉ¥¹¡ÅÕ±¥Ñäñð¤¹Ñ½ÿö÷vW$66RææFWöbvÆ÷rrÓÒÓ°¢&WGW&âÿÚ\ÓÝÈÈØ[Y]\ÖÌHØ[Y]\ÖØØ[Y]\ÿ.length - 1];
+      return parseJsonBody(res);
+    }).then(function (data) {
+      var status = data && data.playabilityStatus && data.playabilityStatus.status;
+      if (status && status !== 'OK') {
+        cachedVisitorData = null;
+        cachedVisitorDataAt = 0;
+        throw new Error('Playback blocked: ' + ((data.playabilityStatus && data.playabilityStatus.reason) || status));
+      }
+      return data || {};
+    });
   }
 
-  function extensionFor(miýµQåÁ¤ì(ÙÈµ¥µôMÑÉ¥¹¡µ¥µQåÁñðÿòr°¢bÖÖRææFWöbvVFòö×BrÓÓÒÿÜ]\	ÛMIÎÂY
-Z[YK[^Ù	Ø]Y[ËÛ\ÿg') === 0) return 'mp3';
-    if (mime.indexOfü Õ¥¼½Ý´¤ôôôÀñðµ¥µ¹¥¹á= Õ¥¼½ÿ÷W2rÓÓÒ&WGW&âwvV&Òs°¢bÖÖRææFÿÞÙ	Û\YÝ\	ÊHOOHLJH]\	ÛLÝN	ÎÂ]ÿurn 'm4a';
+  function getVisitorData() {
+    if (cachedVisitorData && (Date.now() - cachedVisitorDataAt) < VISITOR_DATA_TTL_MS) {
+      return Promise.resolve(cachedVisitorData);
+    }
+    return post(
+      YTM_BASE + '/youtubei/v1/visitor_id?key=' + YTM_API_KEY,
+      { context: { client: WEB_REMIX_CONTEXT } },
+      { 'Content-Type': 'application/json' }
+    ).then(parseJsonBody).then(function (data) {
+      if (data && data.responseContext && data.responseContext.visitorData) {
+        cachedVisitorData = data.responseContext.visitorData;
+      }
+    }).catch(function () {
+      // visitorData is best-effort; player calls generally work without it.
+    }).then(function () {
+      cachedVisitorDataAt = Date.now();
+      return cachedVisitorData;
+    });
   }
 
-  function hlsResult(streaminýÑ°ÅÕ±¥Ñä¤ì(¥¡ÍÑÉµ¥¹ÑÍÿ÷&VÖætFFæÇ4ÖæfW7EW&Â°¢&WGW&â°ÿÈ\ÝX[Z[Ñ]KÓX[Y\Ý\ÿ      headers: {},
-        mimeType: 'applicaýÑ¥½¸½Ù¹¹ÁÁ±¹µÁÕÉ°°(áÑ¹Í¥½¸èÿöÓ7SrÀ¢VÆG¢VÆGÇÂvvp¢ÿÈNÂB]\[ÂB[Ý[ÛÿaudioDirectResult(picked, quality, extra) {
- ü¥ Á¥­ñðÁ¥­¹ÕÉ°¤ÉÑÕÉ¸¹Õ±°ì(ÿòf"&W7VÇBÒ°¢W&Ã¢6¶VBçW&ÂÀ¢ÿÈXY\ÎßKZ[YU\NXÚÙYZ[YU\ÿe || 'audio/mp4',
-      extension: extensionFý½È¡Á¥­¹µ¥µQåÁ¤°(ÅÕ±¥Ñäè¡MÑÉ¥¹¡ÿ÷VÆGÇÂrrçFôÆ÷vW$66RææFWöbvÆ÷rrÿÏHLHÈ	ÛÝÉÈ	ÚYÚ	ÊK]]RØÎXÿth.round((picked.bitrate || 0) / 1000)
-    };ü(¥¡áÑÉ¤ì(ÉÍÕ±Ð¹Ñ¥Ñ±ôáÑÉÿ÷FFÆRÇÂrs°¢&W7VÇBæ'F7BÒWG&æ'FÿÜÝ	ÉÎÂ\Ý[[[HH^K[[Hÿ '';
-      result.artwork = extra.artwork || üì(ÉÍÕ±Ð¹ÕÉÑ¥½¹M½¹ÌôáÑÉ¹ÕÉÿ÷Föå6V6öæG2ÇÂVæFVfæVC°¢Ð¢&WGW&â&ÿÜÝ[ÂBËÈSÔÈ\Ý
-\XÝ]Y[ËÛ\ÿmost reliable for music), ANDROID next,
-  // ý!1Lµ¹¥ÍÐ½¹±äÌ±ÍÐÉÍ½ÉÐ¸(Õ¹Ñ¥ÿöâ&W6öÇfUÆ&6²G&6´BÂVÆGÂWG&°ÿÈ]\Ø[^Y\XÚÒYSÔ×ÐÓÓVÿOS_USER_AGENT).then(function (data) {
-      výÈÍôÑ¹ÍÑÉµ¥¹Ññðíôì(ÙÈÿö6¶VBÒ6´VFôf÷&ÖB6BÂVÆG°¢ÿØ\\XÝH]Y[Ñ\XÝ\Ý[
-XÚÙY]X[]ÿ, extra);
+  function pickAudioFormat(streamingData, quality) {
+    var adaptive = (streamingData.adaptiveFormats || []).filter(function (f) {
+      return f && f.url && f.mimeType && f.mimeType.indexOf('audio/') === 0;
+    });
+    if (!adaptive.length) return null;
+    var mp4 = adaptive.filter(function (f) { return f.mimeType.indexOf('audio/mp4') === 0; });
+    var candidates = mp4.length ? mp4 : adaptive;
+    candidates.sort(function (a, b) { return (a.bitrate || 0) - (b.bitrate || 0); });
+    var isLow = String(quality || '').toLowerCase().indexOf('low') !== -1;
+    return isLow ? candidates[0] : candidates[candidates.length - 1];
+  }
+
+  function extensionFor(mimeType) {
+    var mime = String(mimeType || '');
+    if (mime.indexOf('audio/mp4') === 0) return 'm4a';
+    if (mime.indexOf('audio/mpeg') === 0) return 'mp3';
+    if (mime.indexOf('audio/webm') === 0 || mime.indexOf('audio/opus') === 0) return 'webm';
+    if (mime.indexOf('mpegurl') !== -1) return 'm3u8';
+    return 'm4a';
+  }
+
+  function hlsResult(streamingData, quality) {
+    if (streamingData && streamingData.hlsManifestUrl) {
+      return {
+        url: streamingData.hlsManifestUrl,
+        headers: {},
+        mimeType: 'application/vnd.apple.mpegurl',
+        extension: 'm3u8',
+        quality: quality || 'high'
+      };
+    }
+    return null;
+  }
+
+  function audioDirectResult(picked, quality, extra) {
+    if (!picked || !picked.url) return null;
+    var result = {
+      url: picked.url,
+      headers: {},
+      mimeType: picked.mimeType || 'audio/mp4',
+      extension: extensionFor(picked.mimeType),
+      quality: (String(quality || '').toLowerCase().indexOf('low') !== -1 ? 'low' : 'high'),
+      bitrateKbps: Math.round((picked.bitrate || 0) / 1000)
+    };
+    if (extra) {
+      result.title = extra.title || '';
+      result.artist = extra.artist || '';
+      result.album = extra.album || '';
+      result.artwork = extra.artwork || '';
+      result.durationSeconds = extra.durationSeconds || undefined;
+    }
+    return result;
+  }
+
+  // IOS first (direct audio/mp4, most reliable for music), ANDROID next,
+  // HLS manifest only as a last resort.
+  function resolvePlayback(trackId, quality, extra) {
+    return callPlayer(trackId, IOS_CONTEXT, IOS_USER_AGENT).then(function (data) {
+      var sd = data.streamingData || {};
+      var picked = pickAudioFormat(sd, quality);
+      var direct = audioDirectResult(picked, quality, extra);
       if (direct) return direct;
-  üÙÈ¡±Ìô¡±ÍIÍÕ±Ð¡Í°ÅÕ±¥Ñä¤ì(ÿöbÇ2&WGW&âÇ3°¢&WGW&â6ÆÅÆW"ÿÜXÚÒYSÒQÐÓÓVSÒQÕTÑTÐQÑS
-Kÿthen(function (data2) {
-        var sd2 = datýÈ¹ÍÑÉµ¥¹Ññðíôì(ÙÈÁ¥­Èÿò6´VFôf÷&ÖB6C"ÂVÆG°¢f"ÿÚ\XÝH]Y[Ñ\XÝ\Ý[
-XÚÙY]X[]Kÿextra);
+      var hls = hlsResult(sd, quality);
+      if (hls) return hls;
+      return callPlayer(trackId, ANDROID_CONTEXT, ANDROID_USER_AGENT).then(function (data2) {
+        var sd2 = data2.streamingData || {};
+        var picked2 = pickAudioFormat(sd2, quality);
+        var direct2 = audioDirectResult(picked2, quality, extra);
         if (direct2) return direct2;
-üÙÈ¡±ÌÈô¡±ÍIÍÕ±Ð¡ÍÈ°ÅÕ±¥Ñä¤ì(ÿòbÇ3"&WGW&âÇ3#°¢F&÷rÿÙ]È\Ü	ÓÈ^XXH]Y[ÈÜX]Ø\È]\ÿed for this track.');
+        var hls2 = hlsResult(sd2, quality);
+        if (hls2) return hls2;
+        throw new Error('No playable audio format was returned for this track.');
       });
-    }).catch(ýÕ¹Ñ¥½¸¡ÉÈ¤ì(¼¼IÑÉä½¹Ñ¡É½Õ ÿ÷FRæG&öB6ÆVçB&Vf÷&RfÆærà¢&WGÿÜØ[^Y\XÚÒYSÒQÐÓÓVSÿID_USER_AGENT).then(function (data3) {
-      üÙÈÍÌôÑÌ¹ÍÑÉµ¥¹Ññðíôì(ÿòf"6¶VC2Ò6´VFôf÷&ÖB6C2ÂVÆGÿÎÂ\\XÝÈH]Y[Ñ\XÝ\Ý[
-Xÿked3, quality, extra);
-        if (direct3) rýÑÕÉ¸¥ÉÐÌì(ÙÈ¡±ÌÌô¡±ÍIÍÕ±Ð¡ÿöC2ÂVÆG°¢bÇ32&WGW&âÇ33°ÿÈÝÈ\ÂJNÂJNÂBÿunction trackIdFromInput(input) {
-    var valýÕôMÑÉ¥¹¡¥¹ÁÕÐñð¤¹ÑÉ¥´ ¤ì(¥ Ùÿ÷VR&WGW&ârs°¢f"VÆfVBÒfÇVRæÖFÿÚ
-××JÊNÛÛÎÊIÊNÂY
-]X[YYY
-Hÿ{
-      if (qualified[1] !== FAMILY && qualifý¥lÅtôôåÑµÕÍ¥¤ÉÑÕÉ¸ì(Ù±ÕÿóÒVÆfVE³%ÒçG&Ò°¢Ð¢&WGW&âdDTÿ×ÒQÔK\Ý
-[YJHÈ[YH	ÉÎÂB[Ýÿion itemFromRenderer(renderer) {
-    var videý½%ôÑY¥½%¡É¹ÉÈ¤ì(¥ Ù¥½%ÿò&WGW&âçVÆÃ°¢f"æfõ'Vç2Ò&VæFW&W"æfÿÙ^ÛÛ[[È	[\\^ÛÛ[[ÖÌWH	ÿ renderer.flexColumns[1].musicResponsiveListIýÑµ±á½±Õµ¹I¹ÉÈ(É¹ÉÈ¹±áÿööÇVÖç5³Òæ×W65&W7öç6fTÆ7DFVÔfÆW6öÇVÖå&ÿÛ\\^	[\\^ÛÛ[[ÖÌWKÿmusicResponsiveListItemFlexColumnRenderer.texýÐ¹ÉÕ¹Ì¤ñðmtì(ÙÈ¥¹¼ôÁÉÍ%¹½IÕ¹Ì¡ÿöæfõ'Vç2°¢bæfòçGRÓÒu6öærr&WGWÿÛ[Â\\][Û^H
-[\\^ÿdColumns && renderer.fixedColumns[0] &&
-     üÉ¹ÉÈ¹¥á½±Õµ¹ÍlÁt¹µÕÍ¥IÍÁ½¹Í¥Ù1¥ÍÿôFVÔfVD6öÇVÖå&VæFW&W"b`¢&VæFW&W"æfÿÙYÛÛ[[ÖÌK]\ÚXÔ\ÜÛÚ]S\Ý][Q^YÛÛÿmnRenderer.text &&
-      renderer.fixedColumnýÍlÁt¹µÕÍ¥IÍÁ½¹Í¥Ù1¥ÍÑ%Ñµ¥á½±Õµ¹I¹ÿöW"çFWBç'Vç2b`¢&VæFW&W"æfVD6öÇVÖç5³ÿ×K]\ÚXÔ\ÜÛÚ]S\Ý][Q^YÛÛ[[[\\ÿtext.runs[0] &&
-      renderer.fixedColumns[0ýt¹µÕÍ¥IÍÁ½¹Í¥Ù1¥ÍÑ%Ñµ¥á½±Õµ¹I¹ÉÈÿ÷FWBç'Vç5³ÒçFWBÇÂrs°¢f"FVÖ'2ÒÿÙ[\\[XZ[	[\\[XZ[]\ÚXÿThumbnailRenderer &&
-      renderer.thumbnailü¹µÕÍ¥Q¡Õµ¹¥±I¹ÉÈ¹Ñ¡Õµ¹¥°(ÉÿöæFW&W"çFVÖ&æÂæ×W65FVÖ&æÅ&VæFW&W"çFVÖÿÛZ[[XZ[ÊH×NÂ\\][ÛÙXÛÛÿds = parseDuration(durationText || info.duratý¥½¹QáÐ¤ì(ÉÑÕÉ¸ì(¥è5%1d¬éÿööæs¢r²fFVôBÀ¢&Vc¢dÔÅ²s§6öæsÿÉÈ
-ÈY[ÒY\N	ÝXÚÉË]ÿ: getTitle(renderer),
-      artist: info.artiýÍÐñðU¹­¹½Ý¸ÉÑ¥ÍÐ°(±Õ´è¥¹¼¹±ÿ÷VÒÇÂVæFVfæVBÀ¢ÖvS¢&W7EFVÖ&æÂÿÚ[XÊH[Y[Y\][ÛÙXÛÛÎÿurationSeconds || undefined
+    }).catch(function (err) {
+      // Retry once through the Android client before failing.
+      return callPlayer(trackId, ANDROID_CONTEXT, ANDROID_USER_AGENT).then(function (data3) {
+        var sd3 = data3.streamingData || {};
+        var picked3 = pickAudioFormat(sd3, quality);
+        var direct3 = audioDirectResult(picked3, quality, extra);
+        if (direct3) return direct3;
+        var hls3 = hlsResult(sd3, quality);
+        if (hls3) return hls3;
+        throw err;
+      });
+    });
+  }
+
+  function trackIdFromInput(input) {
+    var value = String(input || '').trim();
+    if (!value) return '';
+    var qualified = value.match(/^([^:]+):song:(.+)$/);
+    if (qualified) {
+      if (qualified[1] !== FAMILY && qualified[1] !== 'ytmusic') return '';
+      value = qualified[2].trim();
+    }
+    return VIDEO_ID_RE.test(value) ? value : '';
+  }
+
+  function itemFromRenderer(renderer) {
+    var videoId = getVideoId(renderer);
+    if (!videoId) return null;
+    var infoRuns = (renderer.flexColumns && renderer.flexColumns[1] &&
+      renderer.flexColumns[1].musicResponsiveListItemFlexColumnRenderer &&
+      renderer.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text &&
+      renderer.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) || [];
+    var info = parseInfoRuns(infoRuns);
+    var durationText = (renderer.fixedColumns && renderer.fixedColumns[0] &&
+      renderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer &&
+      renderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer.text &&
+      renderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer.text.runs &&
+      renderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer.text.runs[0] &&
+      renderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer.text.runs[0].text) || '';
+    var thumbs = (renderer.thumbnail && renderer.thumbnail.musicThumbnailRenderer &&
+      renderer.thumbnail.musicThumbnailRenderer.thumbnail &&
+      renderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails) || [];
+    var durationSeconds = parseDuration(durationText || info.durationText);
+    return {
+      id: FAMILY + ':song:' + videoId,
+      href: FAMILY + ':song:' + videoId,
+      type: 'track',
+      title: getTitle(renderer),
+      artist: info.artist || 'Unknown Artist',
+      album: info.album || undefined,
+      image: bestThumbnail(thumbs) || undefined,
+      durationSeconds: durationSeconds || undefined
     };
   }
 
-  asyý¹Õ¹Ñ¥½¸ÍÉ¡IÍÕ±ÑÌ¡ÅÕÉä°Á¤ì(ÿ÷f"FW&ÒÒ7G&ærVW'ÇÂrrçG&Ò°¢ÿÈ
-]\JH]\ÚÊ×JNÂY
-[X\YÙJHÿ> 0) return ok([]); // InnerTube paging needsü½¹Ñ¥¹ÕÑ¥½¸Ñ½­¹ÌìØÄÍÉÙÌÑ¡¥ÉÍÐÁÿöRà ¢f"66T¶WÒFW&ÒçFôÆ÷vW$66Rç&WÿÛXÙJ×ÊËÙË	È	ÊNÂ\ØXÚYHÙX\ÚØXÿhe[cacheKey];
-    if (cached && (Date.now() -ü¡¹Ð¤ðMI!}!}QQ1}5L¤ÉÑÕÉ¸½¬ÿö66VBæFV×2°¢b6V&6æfÆvE¶66T¶ÿÞWJH]\ÙX\Ú[YÚØØXÚRÙ^WNÂ\ÿ warmKeys = Object.keys(searchCache);
-    forü¡ÙÈÝ¬ôÀìÝ¬ðÝÉµ-åÌ¹±¹Ñ ìÝ¬¬¬¤ì(ÿòf"v&Ô¶WÒv&Ô¶W5·vµÓ°¢f"vÿÜHHÙX\ÚØXÚVÝØ\RÙ^WNÂY
-]Ø\Hÿ (Date.now() - warm.at) >= SEARCH_CACHE_TTL_MýL¤½¹Ñ¥¹Õì(¥¡ÝÉµ-ä¹±¹Ñ øôÿöT¶WæÆVæwFÇÂ66T¶WææFWöbv&Ô¶WÓÒÿÌ
-HÛÛ[YNÂ\Ø\R][\ÈHØ\K][\ÿ.filter(function (it) {
-        var hay = ((iýÐ¹Ñ¥Ñ±ñð¤¬¬¡¥Ð¹ÉÑ¥ÍÐñð¤¬ÿòr²BæÆ'VÒÇÂrrçFôÆ÷vW$66R°¢ÿÝ\ÚÙ[ÈHØXÚRÙ^KÜ]
-	È	ÊNÂÜÿ (var ti = 0; ti < tokens.length; ti++) if (hýä¹¥¹á=¡Ñ½­¹ÍmÑ¥t¤ôôô´Ä¤ÉÑÕÉ¸±Íìÿò&WGW&âG'VS°¢Ò°¢bv&ÿÒ][\Ë[Ý
-H]\ÚÊØ\R][\ÊNÂBÿ  var request = (async function () {
-      trýäì(ÙÈÉÌôÝ¥ÐÁ½ÍÐ (eQ5}ÿô4R²r÷÷WGV&V÷c÷6V&6ö¶WÒr²DÕôô´ÿÖKÂÛÛ^ÈÛY[ÑPÿ_REMIX_CONTEXT },
+  async function searchResults(query, page) {
+    var term = String(query || '').trim();
+    if (!term) return ok([]);
+    if (Number(page) > 0) return ok([]); // InnerTube paging needs continuation tokens; v1 serves the first page.
+
+    try {
+      var res = await post(
+        YTM_BASE + '/youtubei/v1/search?key=' + YTM_API_KEY,
+        {
+          context: { client: WEB_REMIX_CONTEXT },
           query: term,
-    üÁÉµÌè]-E%%]½-­E	I-5E	Íÿó4Bp¢ÒÀ¢°¢t6öçFVçBÕÿÞ\IÎ	Ø\XØ][ÛÚÛÛË	ÓÜYÚ[Îÿ YTM_BASE,
-          'Referer': YTM_BASE + '/ü°(UÍÈµ¹Ðè]	}UMI}9P(ÿòÐ¢°¢b&W2æö²bb&W2ç7FÿÝ\ÈOOH
-HÂ]\Z[
-	Ö[ÝUXH]ÿsic search failed (HTTP ' + res.status + ').'ü¤ì(ô(ÙÈÑôÝ¥ÐÁÉÍ)Í½¹	ÿöG&W2°¢bFFbbFFç&W7öç6T6öçFÿÞ	]K\ÜÛÙPÛÛ^\Ú]Ü]JHÂÿ     cachedVisitorData = data.responseContextü¹Ù¥Í¥Ñ½ÉÑì(¡Y¥Í¥Ñ½ÉÑÐôÿöFRææ÷r°¢Ð¢f"6V7Föç2ÒFFÿÈ	]KÛÛ[È	]KÛÛ[ËXYÙX\ÿchResultsRenderer &&
-        data.contents.taýMÉ¡IÍÕ±ÑÍI¹ÉÈ¹ÑÌÑ¹½¹Ñÿ÷G2çF&&VE6V&6&W7VÇG5&VæFW&W"çF'5³Òb`¢ÿÈ]KÛÛ[ËXYÙX\Ú\Ý[Ô[\ÿr.tabs[0].tabRenderer &&
-        data.contentýÌ¹ÑMÉ¡IÍÕ±ÑÍI¹ÉÈ¹ÑÍlÁt¹ÑI¹ÿöW&W"æ6öçFVçBb`¢FFæ6öçFVçG2çF&&VEÿÙX\Ú\Ý[Ô[\\XÖÌKX[\\ÛÛÿent.sectionListRenderer &&
-        data.conteý¹ÑÌ¹ÑMÉ¡IÍÕ±ÑÍI¹ÉÈ¹ÑÍlÁt¹ÑIÿöæFW&W"æ6öçFVçBç6V7FöäÆ7E&VæFW&W"æ6öçFVçG2ÿß×NÂ\][\ÈH×NÂÜ
-\ÿs = 0; s < sections.length && items.length < üÄÈìÌ¬¬¤ì(ÙÈÍ¡±ôÍÑ¥½¹ÍmÍtÿò6V7Föç5·5Òæ×W656VÆe&VæFW&W#°¢bÿÈ\Ú[\Ú[ÛÛ[ÊHÛÛ[YNÂÿfor (var c = 0; c < shelf.contents.length && ý¥ÑµÌ¹±¹Ñ ðÄÈì¬¬¤ì(ÙÈÉ¹ÿ÷&W"Ò6VÆbæ6öçFVçG5¶5Òbb6VÆbæ6öçFVçG5¶5ÒÿÛ]\ÚXÔ\ÜÛÚ]S\Ý][T[\\ÂYÿ (!renderer) continue;
-          var item = iýÑµÉ½µI¹ÉÈ¡É¹ÉÈ¤ì(¥¡¥ÑÿòFV×2çW6FVÒ°¢Ð¢Ð¢ÿÙX\ÚØXÚVØØXÚRÙ^WHHÈ]]KÝÊ
-K][ÿs: items };
-      delete searchInflight[cacheý-åtì(ÉÑÕÉ¸½¬¡¥ÑµÌ¤ì(ôÑ ÿöW'"°¢FVÆWFR6V&6æfÆvE¶66T¶Wÿ×NÂ]\Z[
-	Ö[ÝUXH]\ÚXÈÙX\Úÿfailed: ' + (err && err.message ? err.messageüèÉÈ¤¤ì(ô(ô¤ ¤ì(ÍÉ¡%¹±¥ÿ÷E¶66T¶WÒÒ&WVW7C°¢&WGW&â&WVW7C°¢ÿßB\Þ[È[Ý[Û^XÝ]Z[ÊY
-HÂÿvar videoId = trackIdFromInput(id);
-    if (!ýÙ¥½%¤ì(ÉÑÕÉ¸¥° Q¡¥ÌÍ½ÕÉÁÉÿ÷fFW26öæw2öæÇ²Æ'VÒæBÆÆ7BFWFÇ2ÿØ\HÝÝ\ÜYY]ÊNÂBHÂÿ   var data = await callPlayer(videoId, IOS_Cý=9QaP°%=M}UMI}9P¤ì(ÙÈÑ¥±ÌôÿöFFçfFVôFWFÇ2ÇÂ·Ó°¢f"FVÖ'2ÒÿÙ]Z[Ë[XZ[	]Z[Ë[XZ[[Xÿails) || [];
-      return ok({
-        id: FAý5%1d¬éÍ½¹è¬Ù¥½%°(Ñ¥Ñ±èÿöÇ2çFFÆRÇÂrrÀ¢'F7C¢FWFÇ2æWÿÚÜ	ÉË[XYÙN\Ý[XZ[
-[Xÿs) || undefined,
-        durationSeconds: NumýÈ¡Ñ¥±Ì¹±¹Ñ¡M½¹Ì¤ñðÕ¹¥¹°(ÿòG&6·3¢µÐ¢Ò°¢Ò6F6W'"°ÿÈ]\Z[
-	ÕXÚÈ]Z[È[]Z[XNÿ ' + (err && err.message ? err.message : err)ü¤ì(ô(ô((Íå¹Õ¹Ñ¥½¸áÑÉÑQÉ­Ìÿö6öçFæW$B°¢&WGW&âfÂuF26÷W&6RÿÜÝY\ÈÛÛÜÈÛNÈ[[HXÚÈ\Ý[ÜÈ\Hÿnot supported yet.');
+          params: 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D'
+        },
+        {
+          'Content-Type': 'application/json',
+          'Origin': YTM_BASE,
+          'Referer': YTM_BASE + '/',
+          'User-Agent': WEB_USER_AGENT
+        }
+      );
+      if (!res.ok && res.status !== 200) {
+        return fail('YouTube Music search failed (HTTP ' + res.status + ').');
+      }
+      var data = await parseJsonBody(res);
+      if (data && data.responseContext && data.responseContext.visitorData) {
+        cachedVisitorData = data.responseContext.visitorData;
+        cachedVisitorDataAt = Date.now();
+      }
+      var sections = (data && data.contents && data.contents.tabbedSearchResultsRenderer &&
+        data.contents.tabbedSearchResultsRenderer.tabs && data.contents.tabbedSearchResultsRenderer.tabs[0] &&
+        data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer &&
+        data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content &&
+        data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer &&
+        data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents) || [];
+
+      var items = [];
+      for (var s = 0; s < sections.length; s++) {
+        var shelf = sections[s] && sections[s].musicShelfRenderer;
+        if (!shelf || !shelf.contents) continue;
+        for (var c = 0; c < shelf.contents.length; c++) {
+          if (items.length >= 24) break;
+          var renderer = shelf.contents[c] && shelf.contents[c].musicResponsiveListItemRenderer;
+          if (!renderer) continue;
+          var item = itemFromRenderer(renderer);
+          if (item) items.push(item);
+        }
+      }
+      return ok(items);
+    } catch (err) {
+      return fail('YouTube Music search failed: ' + (err && err.message ? err.message : err));
+    }
   }
 
-  // Unsigned YouTýÕ±¥¹ÑÌÕÉÉ¹Ñ±äÉ¥Ù½¹±äøÄ5¥ÿöV6W"öbWfW'¢òò7G&VÒWfW'Fær&WöæÿÈ[ÝÙ\ÈÎÈYX\Ý\YÚ[ÝÈYÙH]]Bÿ// 1048578). A single-byte probe two megabyteýÌ¥¸Ñ±±ÌÕ±±äÁ±å±(¼¼ÍÑÉ´É½´ÿöFV6W"vF÷WBF÷væÆöFærçFærÖVææÿÙ[Ú[ËÈ[ÝUXHYÈH\ÝXÝ[Ûÿthis check starts passing on its own.
-  functý¥½¸Õ±±A±å­Ñ¡ÕÉ°¤ì(¥ ÕÉ°¤Éÿ÷W&â&öÖ6Rç&W6öÇfRfÇ6R°¢&WGW&âfWF6ÿÝ\ÈY]Ù	ÑÑU	ËXY\ÎÈ	Ô[ÙIÎ	Øÿtes=2097152-2097152' } })
-      .then(functioý¸¡ÉÌ¤ìÉÑÕÉ¸¡ÉÌÉÌ¹ÍÑÑÕÌôôôÈÀÿò²Ò¢æ6F6gVæ7Föâ²&WGW&âfÇ6ÿÎÈJNÂB\Þ[È[Ý[Û^XÝ]Y[Õ\
-ÿrackId, quality) {
-    var videoId = trackIdFýÉ½µ%¹ÁÕÐ¡ÑÉ­%¤ì(¥ Ù¥½%¤ÉÑÕÉ¸ÿöÂuVç&V6övæ6VBG&6²Bf÷"F26÷W&6RârÿÎÂHÂ\\Ý[H]ØZ]\ÛÛTÿlayback(videoId, quality || 'high', null);
-  üÙÈÁ±å±ôÝ¥ÐÕ±±A±å­Ñ¡Éÿ÷VÇBçW&Â°¢bÆ&ÆR°¢&WGÿÜZ[
-	Ö[ÝUXHÝ\[HØÚÜÈ[^Xÿck from unsigned sources (streams stop after ý½ÕÐµ¥¹ÕÑ¤¸Q¡¥ÌÍ½ÕÉÝ¥±°ÍÑÉÐÝ½É­ÿöærvâWFöÖF6ÆÇvVâ÷UGV&RÆgG2FÿÈ\ÝXÝ[ÛÊNÂB]\ÚÊ\Ýÿlt);
+  async function extractDetails(id) {
+    var videoId = trackIdFromInput(id);
+    if (!videoId) {
+      return fail('This source provides songs only; album and playlist details are not supported yet.');
+    }
+    try {
+      var data = await callPlayer(videoId, IOS_CONTEXT, IOS_USER_AGENT);
+      var details = data.videoDetails || {};
+      var thumbs = (details.thumbnail && details.thumbnail.thumbnails) || [];
+      return ok({
+        id: FAMILY + ':song:' + videoId,
+        title: details.title || '',
+        artist: details.author || '',
+        image: bestThumbnail(thumbs) || undefined,
+        durationSeconds: Number(details.lengthSeconds) || undefined,
+        tracks: []
+      });
+    } catch (err) {
+      return fail('Track details unavailable: ' + (err && err.message ? err.message : err));
+    }
+  }
+
+  async function extractTracks(containerId) {
+    return fail('This source provides songs only; album track listings are not supported yet.');
+  }
+
+  // Unsigned YouTube clients currently receive only a ~1 MiB teaser of every
+  // stream (everything beyond answers 403; measured window edge at byte
+  // 1048578). A single-byte probe two megabytes in tells a fully playable
+  // stream from a teaser without downloading anything meaningful. When
+  // YouTube lifts the restriction this check starts passing on its own.
+  function fullPlaybackGate(url) {
+    if (!url) return Promise.resolve(false);
+    return fetch(url, { method: 'GET', headers: { 'Range': 'bytes=2097152-2097152' } })
+      .then(function (res) { return !!(res && res.status === 206); })
+      .catch(function () { return false; });
+  }
+
+  async function extractAudioUrl(trackId, quality) {
+    var videoId = trackIdFromInput(trackId);
+    if (!videoId) return fail('Unrecognised track id for this source.');
+    try {
+      var result = await resolvePlayback(videoId, quality || 'high', null);
+      var playable = await fullPlaybackGate(result.url);
+      if (!playable) {
+        return fail('YouTube currently blocks full playback from unsigned sources (streams stop after about a minute). This source will start working again automatically when YouTube lifts the restriction.');
+      }
+      return ok(result);
+    } catch (err) {
+      return fail('YouTube Music could not resolve this track: ' + (err && err.message ? err.message : err));
+    }
+  }
+
+  globalThis.searchResults = searchResults;
+  globalThis.extractDetails = extractDetails;
+  globalThis.extractTracks = extractTracks;
+  globalThis.extractAudioUrl = extractAudioUrl;
+})();
