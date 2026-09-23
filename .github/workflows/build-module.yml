@@ -24,7 +24,7 @@ jobs:
           import hashlib, json, zipfile
           from pathlib import Path
 
-          pkg = Path("packages/YT-Music-Direct-1.0.10.zip")
+          pkg = Path("packages/YT-Music-Direct-1.0.11.zip")
           pkg.parent.mkdir(parents=True, exist_ok=True)
 
           files = [
@@ -41,8 +41,8 @@ jobs:
           catalogue = Path("catalogue.json")
           data = json.loads(catalogue.read_text())
           module = data["modules"][0]
-          module["version"] = "1.0.10"
-          module["file"] = "packages/YT-Music-Direct-1.0.10.zip"
+          module["version"] = "1.0.11"
+          module["file"] = "packages/YT-Music-Direct-1.0.11.zip"
           module["sha256"] = digest
           module["moduleId"] = "synthetiq-ytmusic-direct-v1"
           module["moduleFamilyId"] = "synthetiq_ytmusic_direct"
@@ -55,6 +55,6 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/YT-Music-Direct-1.0.10.zip catalogue.json
-          git diff --cached --quiet || git commit -m "Build verified YT Music Direct 1.0.10 package"
+          git add packages/YT-Music-Direct-1.0.11.zip catalogue.json
+          git diff --cached --quiet || git commit -m "Build verified YT Music Direct 1.0.11 package"
           git push
