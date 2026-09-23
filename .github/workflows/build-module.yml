@@ -1,0 +1,60 @@
+name: Build YT Music module package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "modules/synthetiq_ytmusic_direct/**"
+      - "catalogue.json"
+      - ".github/workflows/build-module.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build package and update catalogue
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          from pathlib import Path
+
+          pkg = Path("packages/YT-Music-Direct-1.0.9.zip")
+          pkg.parent.mkdir(parents=True, exist_ok=True)
+
+          files = [
+              ("index.js", Path("modules/synthetiq_ytmusic_direct/index.js")),
+              ("manifest.json", Path("modules/synthetiq_ytmusic_direct/manifest.json")),
+              ("module.json", Path("modules/synthetiq_ytmusic_direct/module.json")),
+          ]
+
+          with zipfile.ZipFile(pkg, "w", compression=zipfile.ZIP_STORED) as z:
+              for name, source in files:
+                  z.writestr(name, source.read_bytes())
+
+          digest = hashlib.sha256(pkg.read_bytes()).hexdigest()
+          catalogue = Path("catalogue.json")
+          data = json.loads(catalogue.read_text())
+          module = data["modules"][0]
+          module["version"] = "1.0.9"
+          module["file"] = "packages/YT-Music-Direct-1.0.9.zip"
+          module["sha256"] = digest
+          module["moduleId"] = "synthetiq-ytmusic-direct-v1"
+          module["moduleFamilyId"] = "synthetiq_ytmusic_direct"
+          module["moduleIdentity"] = "SP-MUS-3031-YTMUSIC-DIRECT"
+          module["moduleIdentityNumber"] = 3031
+          catalogue.write_text(json.dumps(data, indent=2) + "\n")
+          print("PACKAGE_SHA256=" + digest)
+          print("PACKAGE_BYTES=" + str(pkg.stat().st_size))
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/YT-Music-Direct-1.0.9.zip catalogue.json
+          git diff --cached --quiet || git commit -m "Build verified YT Music Direct 1.0.9 package"
+          git push
